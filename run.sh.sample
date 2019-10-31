@@ -1,0 +1,146 @@
+#!/bin/bash
+PATH=/usr/local/bin:/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/sbin
+
+# 定时命令
+# * * * * * www /bin/sh /web/webhook/run.sh care config.ini >> /web/webhook/log/care.log 2>&1
+
+# 工作目录
+WORKDIR=$(cd $(dirname $0); pwd)
+if [ "$(uname)" == "Darwin" ];then
+	SP="/"
+elif [ "$(expr substr $(uname -s) 1 5)" == "Linux" ];then
+	SP="/"
+elif [ "$(expr substr $(uname -s) 1 10)" == "MINGW32_NT" ];then
+	SP="\\"
+fi
+cd $WORKDIR
+
+#日志记录
+log()
+{
+	echo `date +%Y-%m-%d`" $1"
+}
+
+# Server酱通知(http://sc.ftqq.com/3.version) token
+TOKEN=""
+
+if [ "$(uname)" == "Darwin" ];then
+	BIN="release.app"
+elif [ "$(expr substr $(uname -s) 1 5)" == "Linux" ];then
+	BIN="release.bin"
+elif [ "$(expr substr $(uname -s) 1 10)" == "MINGW32_NT" ];then
+	BIN="release.exe"
+fi
+
+CONFIG="config.ini"
+
+#read -p "configFile:" CONFIG
+if [ -n "$2" ];then
+	if [ ! -f "$2" ];then
+		log "configFile: $2 not exist"
+		exit
+	fi
+	CONFIG=$2
+fi
+
+# 操作对象
+op='none'
+if [ -n "$1" ];then
+	op=$1
+fi
+
+# 消息通知函数
+notify()
+{
+	curl -o /dev/null -s "https://sc.ftqq.com/${TOKEN}.send?text=${1// /%20}&desp=${2// /%20}";
+}
+
+# currentPrice
+count()
+{
+	echo `ps  aux | grep -F $BIN | grep -F $CONFIG | grep -v -F 'grep' | wc -l`;
+}
+
+# 运行程序
+run()
+{
+	#切换到运行目录
+	cd $WORKDIR
+
+	#设置日志存储
+	if [ ! -d "${WORKDIR}${SP}log" ]; then
+		mkdir "${WORKDIR}${SP}log"
+	fi
+	local DATA_DAY=`date +%Y-%m-%d`
+	local DATA_SECOND=`date +%Y-%m-%d-%H-%M-%S`
+	local LOG_NAME="${WORKDIR}${SP}log${SP}${BIN}-$(basename $CONFIG)-${DATA_DAY}.log"
+	local BACKUP_LOG_NAME="${WORKDIR}${SP}log${SP}${BIN}-$(basename $CONFIG)-${DATA_SECOND}_bak.log"
+	#备份日志
+	if [ -a "${LOG_NAME}" ]; then
+		mv ${LOG_NAME} ${BACKUP_LOG_NAME}
+	fi
+
+	nohup ${WORKDIR}${SP}${BIN} -f ${CONFIG} >> ${LOG_NAME} 2>&1 &
+
+	log "启动程序: $BIN -f ${CONFIG} 进程ID: $!"
+	log "日志存储: ${LOG_NAME} "
+	cat ${LOG_NAME}
+	log "当前进程数：`count`"
+	return $!
+}
+# 开始函数
+start()
+{
+	run
+	return $!
+}
+# 结束函数
+stop()
+{
+	local num=`count`
+	while [ $num -gt 0 ]; do
+		log "等待结束进程数："$num
+	    ps  aux | grep -F $BIN | grep -F $CONFIG | grep -v -F 'grep' | awk '{print $2}' | xargs -I {} kill -9 {}
+	    num=`count`
+	done
+	log "进程结束"
+
+	return $!
+}
+
+careRelease()
+{
+	local num=`count`
+	if [ $num -lt 1 ];then
+		start
+		num=`count`
+		notify "【$(basename $CONFIG)】推送程序挂掉重启~" "${BIN} -f ${CONFIG} 进程数：$num"
+	fi;
+}
+
+# 操作
+case $op in 
+	care) 
+		careRelease
+	;;
+	start | begin) 
+		start
+		log "start finish" 
+	;; 
+	stop | end) 
+		stop
+		log "stop finish" 
+	;;
+	restart | reload) 
+		stop
+		start
+		log "restart finish" 
+	;; 
+	status) 
+		log "${BIN} ${CONFIG}进程数：`count`" 
+		
+	;;
+	*) 
+		echo $0" [start|stop|restart|status|care]" 
+	;; 
+esac

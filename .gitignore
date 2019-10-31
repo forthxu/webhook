@@ -1,0 +1,8 @@
+.DS_Store
+*.app
+*.bin
+*.exe
+*.sh
+!build.sh
+*.ini
+*.log
