@@ -154,7 +154,7 @@ func (w *Work) HttpRelease(resp http.ResponseWriter, req *http.Request) {
 	// 执行系统命令
 	// 第一个参数是命令名称
 	// 后面参数可以有多个，命令参数
-	cmdLine := "cd " + dir + " && git checkout release && git push release release && git show -2 --name-status"
+	cmdLine := "cd " + dir + " && git checkout release && git pull origin release && git push release release && git show -2 --name-status"
 	cmd := exec.Command("bash", "-c", cmdLine)
 	// 获取输出对象，可以从该对象中读取输出结果
 	stdout, err := cmd.StdoutPipe()
