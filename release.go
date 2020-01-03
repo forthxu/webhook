@@ -128,27 +128,37 @@ func (w *Work) HttpRelease(resp http.ResponseWriter, req *http.Request) {
 		resp.Write(retrunJson("[release] 参数错误", false, nil))
 		return
 	}
-
-	var dirSlice []string
-	dirSlice = append(dirSlice, w.Params["dir"])
 	items := strings.Split(project, ".")
+
+	//目录形式一
+	var dirSlice []string = []string{}
+	dirSlice = append(dirSlice, w.Params["dir"])
 	//log.Println(items);
 	if len(items) > 2 {
 		dirSlice = append(dirSlice, strings.Join(items[1:], "."))
-
 	}
 	dirSlice = append(dirSlice, items[0])
 	dir := strings.Join(dirSlice, "/")
 	//log.Println(dir)
 
+	//目录形式二
 	s, err := os.Stat(dir + "/.git")
-	if err != nil {
-		resp.Write(retrunJson("[release] 目录不存在"+dir, false, nil))
-		return
-	}
-	if !s.IsDir() {
-		resp.Write(retrunJson("[release] 非版本库"+dir, false, nil))
-		return
+	if err != nil || !s.IsDir() {
+		dirFail := dir
+
+		var dirSlice []string = []string{}
+		var len int = len(items)
+		dirSlice = append(dirSlice, w.Params["dir"])
+		dirSlice = append(dirSlice, strings.Join(items[len-2:], "."))
+		dirSlice = append(dirSlice, strings.Join(items[:len-2], "."))		
+		dir := strings.Join(dirSlice, "/")
+		//log.Println(dir)
+
+		s, err = os.Stat(dir + "/.git")
+		if err != nil || !s.IsDir() {
+			resp.Write(retrunJson("[release] 目录不存在", false, []string{dirFail, dir}))
+			return
+		}
 	}
 
 	// 执行系统命令
