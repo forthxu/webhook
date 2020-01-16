@@ -74,7 +74,11 @@ func (w *Work) Init() {
 			for _, v := range section {
 				param, err := cfg.String("app", v)
 				if err == nil {
-					w.Params[v] = param
+					if v=="dir" {
+						w.Params[v] = strings.TrimRight(param, "/")
+					}else{
+						w.Params[v] = param
+					}
 				}
 			}
 		}
@@ -129,6 +133,7 @@ func (w *Work) HttpRelease(resp http.ResponseWriter, req *http.Request) {
 		return
 	}
 	items := strings.Split(project, ".")
+	var dir string
 
 	//目录形式一
 	var dirSlice []string = []string{}
@@ -138,7 +143,7 @@ func (w *Work) HttpRelease(resp http.ResponseWriter, req *http.Request) {
 		dirSlice = append(dirSlice, strings.Join(items[1:], "."))
 	}
 	dirSlice = append(dirSlice, items[0])
-	dir := strings.Join(dirSlice, "/")
+	dir = strings.Join(dirSlice, "/")
 	//log.Println(dir)
 
 	//目录形式二
@@ -151,7 +156,7 @@ func (w *Work) HttpRelease(resp http.ResponseWriter, req *http.Request) {
 		dirSlice = append(dirSlice, w.Params["dir"])
 		dirSlice = append(dirSlice, strings.Join(items[len-2:], "."))
 		dirSlice = append(dirSlice, strings.Join(items[:len-2], "."))		
-		dir := strings.Join(dirSlice, "/")
+		dir = strings.Join(dirSlice, "/")
 		//log.Println(dir)
 
 		s, err = os.Stat(dir + "/.git")
@@ -183,7 +188,7 @@ func (w *Work) HttpRelease(resp http.ResponseWriter, req *http.Request) {
 		log.Fatal(err)
 	}
 	//fmt.Printf("%s", opBytes)
-	resp.Write(retrunJson("release", true, strings.Split(fmt.Sprintf("%s", opBytes), "\n")))
+	resp.Write(retrunJson(dir, true, strings.Split(fmt.Sprintf("%s", opBytes), "\n")))
 }
 
 //http线程返回结果结构函数
